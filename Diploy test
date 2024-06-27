@@ -1,0 +1,45 @@
+name: Deploy to Edgeserver
+
+on:
+  push:
+    branches:
+      - "master"
+
+jobs:
+  zip-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - uses: pnpm/action-setup@v2.0.1
+        name: Install pnpm
+        id: pnpm-install
+        with:
+          version: 8
+          run_install: false
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: |
+          echo "::set-output name=pnpm_cache_dir::$(pnpm store path)"
+      - uses: actions/cache@v3
+        name: Setup pnpm cache
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build
+        run: pnpm build
+
+      - name: Edgeserver Upload
+        uses: lvkdotsh/edgeserver-action@v0.1.2-pre.4
+        with:
+          app_id: "207908994488658940"
+          server: https://api.edgeserver.io
+          token: ${{ secrets.SIGNAL_TOKEN }}
+          directory: dist
